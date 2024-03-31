@@ -2,13 +2,15 @@ import streamlit as st
 from stock_data import stock_names_symbols
 import pandas as pd
 import plotly.express as px
+import plotly.graph_objects as go
 
 st.set_page_config(
     page_title="Stock Price Predictor",
     page_icon=""
 )
 
-st.title("Stock Price Prediction")
+st.title("Welcome to Stock Price Predictor!")
+st.subheader("")
 st.sidebar.success("Select a page above.")
 
 @st.cache_data
@@ -28,6 +30,11 @@ selected_stock = st.selectbox(
 time_range = st.selectbox(
     "Select time range:",
     ["7d", "30d", "6m", "1y", "5y", "All"]
+)
+
+chart_type = st.radio(
+    "Select chart type:",
+    ("Line Chart", "Candlestick Chart")
 )
 
 if selected_stock:
@@ -55,5 +62,14 @@ if selected_stock:
         pass
 
     # Plot stock data
-    fig = px.line(stock_data, x='Date', y='Close', title=f"Stock Chart for {selected_stock} ({time_range})")
+    if chart_type == "Line Chart":
+        fig = px.line(stock_data, x='Date', y='Close', title=f"Stock Chart for {selected_stock} ({time_range})")
+    elif chart_type == "Candlestick Chart":
+        fig = go.Figure(data=[go.Candlestick(x=stock_data['Date'],
+                                             open=stock_data['Open'],
+                                             high=stock_data['High'],
+                                             low=stock_data['Low'],
+                                             close=stock_data['Close'])])
+        fig.update_layout(title=f"Candlestick Chart for {selected_stock} ({time_range})")
+
     st.plotly_chart(fig)

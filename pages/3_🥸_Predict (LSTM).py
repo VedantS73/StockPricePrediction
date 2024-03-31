@@ -5,9 +5,9 @@ import plotly.express as px
 import plotly.graph_objects as go
 import numpy as np
 from sklearn.preprocessing import MinMaxScaler
+from sklearn.metrics import mean_absolute_error, mean_squared_error
 from keras.models import Sequential
 from keras.layers import Dense, LSTM
-import matplotlib.pyplot as plt
 
 st.set_page_config(
     page_title="Stock Price Predictor",
@@ -67,10 +67,6 @@ if selected_stock and train_button:
     for i in range(60, len(train_data)):
         x_train.append(train_data[i - 60:i, 0])
         y_train.append(train_data[i, 0])
-        if i <= 61:
-            print(x_train)
-            print(y_train)
-            print()
             
     # Convert the x_train and y_train to numpy arrays 
     x_train, y_train = np.array(x_train), np.array(y_train)
@@ -93,32 +89,33 @@ if selected_stock and train_button:
 
     model.save(f"data/trained/{symbol}.h5")
     st.success(f"Training process for {symbol} completed successfully.")
-    # Create a new array containing scaled values from index 1543 to 2002 
-    test_data = scaled_data[training_data_len - 60: , :]
-    # Create the data sets x_test and y_test
+    
+    # Create the test data
+    test_data = scaled_data[training_data_len - 60:, :]
     x_test = []
     y_test = dataset[training_data_len:, :]
     for i in range(60, len(test_data)):
-        x_test.append(test_data[i-60:i, 0])
-        
+        x_test.append(test_data[i - 60:i, 0])
+
     # Convert the data to a numpy array
     x_test = np.array(x_test)
-
     # Reshape the data
-    x_test = np.reshape(x_test, (x_test.shape[0], x_test.shape[1], 1 ))
+    x_test = np.reshape(x_test, (x_test.shape[0], x_test.shape[1], 1))
 
+    # Get the model's predicted price values
     predictions = model.predict(x_test)
     predictions = scaler.inverse_transform(predictions)
-   
+
+    # Prepare the data for visualization
     train = data[:training_data_len]
     valid = data[training_data_len:]
     valid['Predictions'] = predictions
 
+    # Plot the chart
     fig = go.Figure()
     fig.add_trace(go.Scatter(x=train.index, y=train['Close'], mode='lines', name='Train'))
     fig.add_trace(go.Scatter(x=valid.index, y=valid['Close'], mode='lines', name='Actual'))
     fig.add_trace(go.Scatter(x=valid.index, y=valid['Predictions'], mode='lines', name='Predicted'))
-    
     fig.update_layout(
         title='Model',
         xaxis_title='Date',
@@ -127,3 +124,46 @@ if selected_stock and train_button:
         margin=dict(l=40, r=40, t=80, b=40)
     )
     st.plotly_chart(fig)
+
+    # Show the table containing 'valid' data
+    st.write("Valid and Preicted Prices:")
+    st.write(valid)
+    
+    # Calculate Mean Absolute Error (MAE)
+    mae = mean_absolute_error(valid['Close'], valid['Predictions'])
+
+    # Calculate Mean Squared Error (MSE)
+    mse = mean_squared_error(valid['Close'], valid['Predictions'])
+
+    # Calculate Root Mean Squared Error (RMSE)
+    rmse = np.sqrt(mse)
+
+    st.write(f"Mean Absolute Error (MAE): {mae}")
+    st.write(f"Mean Squared Error (MSE): {mse}")
+    st.write(f"Root Mean Squared Error (RMSE): {rmse}")
+    
+    # Calculate absolute percentage error for each prediction
+    valid['Absolute_Percentage_Error'] = abs((valid['Close'] - valid['Predictions']) / valid['Close']) * 100
+
+    # Define threshold for considering predictions as correct
+    threshold = 8  # 1% threshold
+
+    # Count number of correct predictions
+    correct_predictions = (valid['Absolute_Percentage_Error'] <= threshold).sum()
+
+    # Total number of predictions
+    total_predictions = len(valid)
+
+    # Calculate percentage accuracy
+    percentage_accuracy = (correct_predictions / total_predictions) * 100
+    
+    st.write(f"Percentage Accuracy: {percentage_accuracy:.2f}%")
+
+    # Calculate overall performance and accuracy of the model (you can add your specific metrics here)
+    # For example:
+    # performance_metric = ...
+    # accuracy_metric = ...
+
+    # Display performance and accuracy
+    # st.write(f"Performance Metric: {performance_metric}")
+    # st.write(f"Accuracy Metric: {accuracy_metric}")
